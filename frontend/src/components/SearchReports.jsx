@@ -38,6 +38,18 @@ export default function SearchReports() {
     await navigator.clipboard.writeText(text);
   };
 
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this trip report? This cannot be undone.")) return;
+    try {
+      const res = await fetch(`/api/reports/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Delete failed");
+      setResults((prev) => prev.filter((r) => r.id !== id));
+      setExpanded(null);
+    } catch (err) {
+      alert("Delete error: " + err.message);
+    }
+  };
+
   return (
     <div className="search-container">
       <section className="form-section">
@@ -133,12 +145,20 @@ export default function SearchReports() {
                     readOnly
                     rows={20}
                   />
-                  <button
-                    className="btn-copy"
-                    onClick={() => handleCopy(r.full_report_text)}
-                  >
-                    Copy to Clipboard
-                  </button>
+                  <div className="output-actions">
+                    <button
+                      className="btn-copy"
+                      onClick={() => handleCopy(r.full_report_text)}
+                    >
+                      Copy to Clipboard
+                    </button>
+                    <button
+                      className="btn-delete"
+                      onClick={() => handleDelete(r.id)}
+                    >
+                      Delete Report
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 const MEETING_TYPES = [
   "Discovery",
@@ -11,6 +11,8 @@ const MEETING_TYPES = [
   "Other",
 ];
 
+const MEETING_FORMATS = ["#Virtual", "#Onsite"];
+
 const emptyOpp = () => ({ name: "", b: "", a: "", n: "", t: "", c: "" });
 const emptyAction = () => ({ nextSteps: "", owner: "", dueDate: "" });
 
@@ -22,6 +24,14 @@ export default function TripReportForm() {
   const [district, setDistrict] = useState("");
   const [meetingDate, setMeetingDate] = useState("");
   const [meetingType, setMeetingType] = useState(MEETING_TYPES[0]);
+  const [meetingFormat, setMeetingFormat] = useState(MEETING_FORMATS[0]);
+  const [crmLink, setCrmLink] = useState("");
+
+  // -- Free text areas --
+  const [techProfile, setTechProfile] = useState("");
+  const [meetingNotes, setMeetingNotes] = useState("");
+  const [summary, setSummary] = useState("");
+  const [attendees, setAttendees] = useState("");
 
   // -- Image upload --
   const [imageFile, setImageFile] = useState(null);
@@ -33,10 +43,12 @@ export default function TripReportForm() {
   const [actions, setActions] = useState([emptyAction()]);
 
   // -- Output --
+  const [generatedHtml, setGeneratedHtml] = useState("");
   const [generatedText, setGeneratedText] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
+  const previewRef = useRef(null);
 
   // ---- Opp helpers ----
   const updateOpp = (idx, field, value) => {
@@ -70,71 +82,177 @@ export default function TripReportForm() {
     }
   };
 
-  // ======== TEXT COMPILER ========
-  const compileReport = () => {
-    const lines = [];
+  // ---- Format date nicely ----
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "";
+    const d = new Date(dateStr + "T00:00:00");
+    return d.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
 
-    lines.push("=".repeat(60));
-    lines.push("TRIP REPORT");
-    lines.push("=".repeat(60));
-    lines.push("");
-    lines.push(`Customer:      ${customer}`);
-    lines.push(`AE:            ${ae}`);
-    lines.push(`District:      ${district}`);
-    lines.push(`Topic:         ${topic}`);
-    lines.push(`Meeting Date:  ${meetingDate}`);
-    lines.push(`Meeting Type:  ${meetingType}`);
-    lines.push("");
+  // ======== HTML COMPILER (for email) ========
+  const compileHtml = () => {
+    const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const nl2br = (s) => esc(s).replace(/\n/g, "<br>");
 
-    if (imageUrl) {
-      lines.push(`Participants:  [See attached image: ${imageUrl}]`);
-      lines.push("");
+    let html = `
+<div style="font-family: Calibri, Arial, sans-serif; color: #222; max-width: 700px; line-height: 1.6;">
+
+  <h1 style="margin: 0 0 4px 0; font-size: 22px; color: #000;">Trip Report</h1>
+  <div style="color: #666; font-size: 13px; margin-bottom: 16px;">${formatDate(meetingDate)}</div>
+
+  <div style="margin-bottom: 16px; font-size: 14px;">
+    ${crmLink ? `<strong>CRM:</strong> <a href="${esc(crmLink)}" style="color: #1a73e8;">${esc(crmLink)}</a><br>` : ""}
+    <strong>${esc(meetingFormat)}</strong><br>
+    <strong>Customer:</strong> ${esc(customer)}<br>
+    <strong>AE:</strong> ${esc(ae)}<br>
+    <strong>Topic:</strong> ${esc(topic)}<br>
+    <strong>District:</strong> ${esc(district)}<br>
+    <strong>Meeting Date:</strong> ${formatDate(meetingDate)}<br>
+    <strong>Meeting Type:</strong> ${esc(meetingType)}
+  </div>
+
+  <div style="background: #fff3f3; border-left: 4px solid #e53e3e; padding: 8px 12px; margin-bottom: 20px; font-size: 13px; color: #c53030;">
+    <strong>Internal notes</strong> – Please read and edit before sending externally
+  </div>
+
+  <h2 style="color: #2b6cb0; font-size: 16px; margin: 24px 0 8px 0; border: none;">Summary</h2>
+  <div style="font-size: 14px; margin-bottom: 16px;">${summary.trim() ? nl2br(summary) : "<em style='color:#999;'>—</em>"}</div>
+
+  <h2 style="color: #2b6cb0; font-size: 16px; margin: 24px 0 8px 0; border: none;">Action Items</h2>`;
+
+    if (actions.some((a) => a.nextSteps.trim())) {
+      html += `<table style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 16px;">
+    <thead>
+      <tr style="background: #f7fafc;">
+        <th style="text-align: left; padding: 6px 10px; border-bottom: 2px solid #e2e8f0;">#</th>
+        <th style="text-align: left; padding: 6px 10px; border-bottom: 2px solid #e2e8f0;">Next Steps</th>
+        <th style="text-align: left; padding: 6px 10px; border-bottom: 2px solid #e2e8f0;">Owner</th>
+        <th style="text-align: left; padding: 6px 10px; border-bottom: 2px solid #e2e8f0;">Due Date</th>
+      </tr>
+    </thead>
+    <tbody>`;
+      actions.forEach((act, i) => {
+        html += `
+      <tr>
+        <td style="padding: 6px 10px; border-bottom: 1px solid #e2e8f0;">${i + 1}</td>
+        <td style="padding: 6px 10px; border-bottom: 1px solid #e2e8f0;">${esc(act.nextSteps)}</td>
+        <td style="padding: 6px 10px; border-bottom: 1px solid #e2e8f0;">${esc(act.owner)}</td>
+        <td style="padding: 6px 10px; border-bottom: 1px solid #e2e8f0;">${act.dueDate ? formatDate(act.dueDate) : ""}</td>
+      </tr>`;
+      });
+      html += `
+    </tbody>
+  </table>`;
+    } else {
+      html += `<div style="font-size: 14px; margin-bottom: 16px; color: #999;"><em>—</em></div>`;
     }
 
-    // -- Opportunities --
-    lines.push("-".repeat(60));
-    lines.push("OPPORTUNITIES");
-    lines.push("-".repeat(60));
+    html += `
+  <h2 style="color: #2b6cb0; font-size: 16px; margin: 24px 0 8px 0; border: none;">Opportunities Identified</h2>`;
+
     opps.forEach((opp, i) => {
-      lines.push("");
-      lines.push(`  Opp ${i + 1}: ${opp.name}`);
-      lines.push(`    B: ${opp.b}`);
-      lines.push(`    A: ${opp.a}`);
-      lines.push(`    N: ${opp.n}`);
-      lines.push(`    T: ${opp.t}`);
-      lines.push(`    C: ${opp.c}`);
+      html += `
+  <div style="margin-bottom: 12px; font-size: 14px;">
+    <strong>Opp ${i + 1} – ${esc(opp.name)}</strong><br>
+    <span style="color: #555;">B:</span> ${esc(opp.b)}<br>
+    <span style="color: #555;">A:</span> ${esc(opp.a)}<br>
+    <span style="color: #555;">N:</span> ${esc(opp.n)}<br>
+    <span style="color: #555;">T:</span> ${esc(opp.t)}<br>
+    <span style="color: #555;">C:</span> ${esc(opp.c)}
+  </div>`;
     });
-    lines.push("");
 
-    // -- Action Items --
-    lines.push("-".repeat(60));
-    lines.push("ACTION ITEMS");
-    lines.push("-".repeat(60));
+    html += `
+  <h2 style="color: #2b6cb0; font-size: 16px; margin: 24px 0 8px 0; border: none;">Attendees</h2>
+  <div style="font-size: 14px; margin-bottom: 16px;">${attendees.trim() ? nl2br(attendees) : "<em style='color:#999;'>—</em>"}</div>
+
+  <h2 style="color: #2b6cb0; font-size: 16px; margin: 24px 0 8px 0; border: none;">Tech Profile Updates</h2>
+  <div style="font-size: 14px; margin-bottom: 16px;">${techProfile.trim() ? nl2br(techProfile) : "<em style='color:#999;'>—</em>"}</div>
+
+  <h2 style="color: #2b6cb0; font-size: 16px; margin: 24px 0 8px 0; border: none;">Meeting Notes</h2>
+  <div style="font-size: 14px; margin-bottom: 16px;">${meetingNotes.trim() ? nl2br(meetingNotes) : "<em style='color:#999;'>—</em>"}</div>
+
+</div>`;
+
+    return html;
+  };
+
+  // ======== PLAIN TEXT COMPILER (for DB storage) ========
+  const compileText = () => {
+    const lines = [];
+    lines.push("TRIP REPORT");
+    lines.push(`${formatDate(meetingDate)}`);
+    lines.push("");
+    if (crmLink) lines.push(`CRM: ${crmLink}`);
+    lines.push(meetingFormat);
+    lines.push(`Customer: ${customer}`);
+    lines.push(`AE: ${ae}`);
+    lines.push(`Topic: ${topic}`);
+    lines.push(`District: ${district}`);
+    lines.push(`Meeting Date: ${formatDate(meetingDate)}`);
+    lines.push(`Meeting Type: ${meetingType}`);
+    lines.push("");
+    lines.push("--- Summary ---");
+    lines.push(summary || "—");
+    lines.push("");
+    lines.push("--- Action Items ---");
     actions.forEach((act, i) => {
-      lines.push("");
-      lines.push(`  ${i + 1}. Next Steps: ${act.nextSteps}`);
-      lines.push(`     Owner:      ${act.owner}`);
-      lines.push(`     Due Date:   ${act.dueDate}`);
+      lines.push(`${i + 1}. ${act.nextSteps} | Owner: ${act.owner} | Due: ${act.dueDate ? formatDate(act.dueDate) : "—"}`);
     });
     lines.push("");
-    lines.push("=".repeat(60));
-
+    lines.push("--- Opportunities Identified ---");
+    opps.forEach((opp, i) => {
+      lines.push(`Opp ${i + 1} – ${opp.name}`);
+      lines.push(`  B: ${opp.b}`);
+      lines.push(`  A: ${opp.a}`);
+      lines.push(`  N: ${opp.n}`);
+      lines.push(`  T: ${opp.t}`);
+      lines.push(`  C: ${opp.c}`);
+    });
+    lines.push("");
+    lines.push("--- Attendees ---");
+    lines.push(attendees || "—");
+    lines.push("");
+    lines.push("--- Tech Profile Updates ---");
+    lines.push(techProfile || "—");
+    lines.push("");
+    lines.push("--- Meeting Notes ---");
+    lines.push(meetingNotes || "—");
     return lines.join("\n");
   };
 
   // ---- Generate ----
   const handleGenerate = () => {
-    const text = compileReport();
-    setGeneratedText(text);
+    setGeneratedHtml(compileHtml());
+    setGeneratedText(compileText());
     setSaved(false);
     setCopied(false);
   };
 
-  // ---- Copy to clipboard ----
+  // ---- Copy as rich HTML (pastes formatted into Outlook/Gmail) ----
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(generatedText);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      const blob = new Blob([generatedHtml], { type: "text/html" });
+      const textBlob = new Blob([generatedText], { type: "text/plain" });
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "text/html": blob,
+          "text/plain": textBlob,
+        }),
+      ]);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback to plain text
+      await navigator.clipboard.writeText(generatedText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   // ---- Save to DB ----
@@ -203,6 +321,24 @@ export default function TripReportForm() {
               ))}
             </select>
           </label>
+          <label>
+            Meeting Format
+            <select value={meetingFormat} onChange={(e) => setMeetingFormat(e.target.value)}>
+              {MEETING_FORMATS.map((f) => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            CRM Link
+            <input
+              value={crmLink}
+              onChange={(e) => setCrmLink(e.target.value)}
+              placeholder="https://crm.example.com/..."
+            />
+          </label>
         </div>
       </section>
 
@@ -225,10 +361,68 @@ export default function TripReportForm() {
         )}
       </section>
 
+      {/* ---- SUMMARY ---- */}
+      <section className="form-section">
+        <h2>Summary</h2>
+        <textarea
+          className="text-area-field"
+          value={summary}
+          onChange={(e) => setSummary(e.target.value)}
+          placeholder="High-level summary of the meeting..."
+          rows={4}
+        />
+      </section>
+
+      {/* ---- ACTION ITEMS (moved before Opps to match template) ---- */}
+      <section className="form-section">
+        <div className="section-header">
+          <h2>Action Items</h2>
+          <button className="btn-add" onClick={addAction}>
+            + Add Action Item
+          </button>
+        </div>
+        {actions.map((act, i) => (
+          <div key={i} className="dynamic-block">
+            <div className="block-header">
+              <strong>Action {i + 1}</strong>
+              {actions.length > 1 && (
+                <button className="btn-remove" onClick={() => removeAction(i)}>
+                  Remove
+                </button>
+              )}
+            </div>
+            <div className="field-grid">
+              <label>
+                Next Steps
+                <input
+                  value={act.nextSteps}
+                  onChange={(e) => updateAction(i, "nextSteps", e.target.value)}
+                />
+              </label>
+              <label>
+                Owner
+                <input
+                  value={act.owner}
+                  onChange={(e) => updateAction(i, "owner", e.target.value)}
+                />
+              </label>
+              <label>
+                Due Date
+                <input
+                  type="date"
+                  value={act.dueDate}
+                  onChange={(e) => updateAction(i, "dueDate", e.target.value)}
+                />
+              </label>
+            </div>
+          </div>
+        ))}
+      </section>
+
       {/* ---- OPPORTUNITIES ---- */}
       <section className="form-section">
         <div className="section-header">
-          <h2>Opportunities</h2>
+          <h2>Opportunities Identified</h2>
           <button className="btn-add" onClick={addOpp}>
             + Add Opp
           </button>
@@ -291,50 +485,40 @@ export default function TripReportForm() {
         ))}
       </section>
 
-      {/* ---- ACTION ITEMS ---- */}
+      {/* ---- ATTENDEES ---- */}
       <section className="form-section">
-        <div className="section-header">
-          <h2>Action Items</h2>
-          <button className="btn-add" onClick={addAction}>
-            + Add Action Item
-          </button>
-        </div>
-        {actions.map((act, i) => (
-          <div key={i} className="dynamic-block">
-            <div className="block-header">
-              <strong>Action {i + 1}</strong>
-              {actions.length > 1 && (
-                <button className="btn-remove" onClick={() => removeAction(i)}>
-                  Remove
-                </button>
-              )}
-            </div>
-            <div className="field-grid">
-              <label>
-                Next Steps
-                <input
-                  value={act.nextSteps}
-                  onChange={(e) => updateAction(i, "nextSteps", e.target.value)}
-                />
-              </label>
-              <label>
-                Owner
-                <input
-                  value={act.owner}
-                  onChange={(e) => updateAction(i, "owner", e.target.value)}
-                />
-              </label>
-              <label>
-                Due Date
-                <input
-                  type="date"
-                  value={act.dueDate}
-                  onChange={(e) => updateAction(i, "dueDate", e.target.value)}
-                />
-              </label>
-            </div>
-          </div>
-        ))}
+        <h2>Attendees</h2>
+        <textarea
+          className="text-area-field"
+          value={attendees}
+          onChange={(e) => setAttendees(e.target.value)}
+          placeholder="List attendees (one per line)..."
+          rows={4}
+        />
+      </section>
+
+      {/* ---- TECH PROFILE ---- */}
+      <section className="form-section">
+        <h2>Tech Profile Updates</h2>
+        <textarea
+          className="text-area-field"
+          value={techProfile}
+          onChange={(e) => setTechProfile(e.target.value)}
+          placeholder="What does the customer currently have in place? (e.g., firewalls, EDR, SIEM, cloud providers...)"
+          rows={4}
+        />
+      </section>
+
+      {/* ---- MEETING NOTES ---- */}
+      <section className="form-section">
+        <h2>Meeting Notes</h2>
+        <textarea
+          className="text-area-field"
+          value={meetingNotes}
+          onChange={(e) => setMeetingNotes(e.target.value)}
+          placeholder="Free-form meeting notes..."
+          rows={6}
+        />
       </section>
 
       {/* ---- GENERATE ---- */}
@@ -344,19 +528,18 @@ export default function TripReportForm() {
         </button>
       </section>
 
-      {/* ---- OUTPUT ---- */}
-      {generatedText && (
+      {/* ---- OUTPUT (HTML preview) ---- */}
+      {generatedHtml && (
         <section className="form-section output-section">
           <h2>Final Trip Report</h2>
-          <textarea
-            className="report-output"
-            value={generatedText}
-            readOnly
-            rows={24}
+          <div
+            ref={previewRef}
+            className="report-preview"
+            dangerouslySetInnerHTML={{ __html: generatedHtml }}
           />
           <div className="output-actions">
             <button className="btn-copy" onClick={handleCopy}>
-              {copied ? "Copied!" : "Copy to Clipboard"}
+              {copied ? "Copied!" : "Copy for Email"}
             </button>
             <button
               className="btn-save"

@@ -62,7 +62,7 @@ class ImageOut(BaseModel):
 @app.on_event("startup")
 async def startup():
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(Base.metadata.create_all, checkfirst=True)
 
 
 # ---------- Routes ----------
@@ -141,3 +141,15 @@ async def get_report(report_id: int, db: AsyncSession = Depends(get_db)):
     if not report:
         raise HTTPException(404, "Report not found")
     return report
+
+
+@app.delete("/api/reports/{report_id}", status_code=204)
+async def delete_report(report_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(TripReport).where(TripReport.id == report_id)
+    )
+    report = result.scalar_one_or_none()
+    if not report:
+        raise HTTPException(404, "Report not found")
+    await db.delete(report)
+    await db.commit()
