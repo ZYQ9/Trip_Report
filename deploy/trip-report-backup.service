@@ -1,0 +1,7 @@
+[Unit]
+Description=Trip Report Database Backup
+
+[Service]
+Type=oneshot
+User=postgres
+ExecStart=/opt/trip-report/deploy/backup.sh
