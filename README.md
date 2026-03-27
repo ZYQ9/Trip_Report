@@ -22,15 +22,20 @@ trip_report/
 │       └── components/
 │           ├── TripReportForm.jsx   # Data entry + text compiler
 │           └── SearchReports.jsx    # Search/filter history
-└── deploy/
-    ├── setup.sh                    # One-shot Ubuntu deployment script
-    ├── trip-report.service         # systemd unit (app)
-    ├── trip-report-backup.service  # systemd unit (backup oneshot)
-    ├── trip-report-backup.timer    # systemd timer (nightly 2 AM)
-    ├── backup.sh                   # pg_dump + image tar + rotation
-    ├── restore.sh                  # Interactive restore from backup
-    ├── tripreport.nginx.conf       # Nginx reverse proxy config
-    └── .env.example                # Environment variable template
+├── deploy/
+│   ├── setup.sh                    # One-shot Ubuntu deployment script
+│   ├── ci-deploy.sh                # CI/CD deploy (called by GitHub Actions)
+│   ├── install-runner.sh           # GitHub Actions self-hosted runner install
+│   ├── trip-report.service         # systemd unit (app)
+│   ├── trip-report-backup.service  # systemd unit (backup oneshot)
+│   ├── trip-report-backup.timer    # systemd timer (nightly 2 AM)
+│   ├── backup.sh                   # pg_dump + image tar + rotation
+│   ├── restore.sh                  # Interactive restore from backup
+│   ├── tripreport.nginx.conf       # Nginx reverse proxy config
+│   └── .env.example                # Environment variable template
+└── .github/
+    └── workflows/
+        └── deploy.yml              # GitHub Actions workflow
 ```
 
 ## Production Deployment (Ubuntu)
@@ -151,6 +156,53 @@ Local backups protect against accidental deletion. For hardware failure protecti
 
 # Example: sync to S3-compatible storage
 30 2 * * * aws s3 sync /opt/trip-report/backups/ s3://your-bucket/trip-report-backups/
+```
+
+## CI/CD Pipeline
+
+Deploys automatically when you push to `main` via a self-hosted GitHub Actions runner on the server.
+
+### How it works
+
+```
+git push origin main
+       │
+       ▼
+GitHub Actions ──► self-hosted runner on server
+                      │
+                      ├── rsync backend + frontend source
+                      ├── pip install (if deps changed)
+                      ├── npm ci + npm run build
+                      ├── set permissions
+                      └── systemctl restart trip-report + reload nginx
+```
+
+### One-time runner setup
+
+1. Go to your GitHub repo → **Settings → Actions → Runners → New self-hosted runner**
+2. Copy the **token** (it expires quickly, use it right away)
+3. On the server:
+
+```bash
+cd /tmp/trip_report
+chmod +x deploy/install-runner.sh
+sudo ./deploy/install-runner.sh https://github.com/YOUR_USER/YOUR_REPO YOUR_TOKEN
+```
+
+4. Verify the runner appears as "Online" in GitHub Settings → Actions → Runners
+
+### Workflow triggers
+
+- **Auto:** Every push to `main`
+- **Manual:** GitHub repo → Actions → "Deploy Trip Report" → Run workflow
+
+### Viewing deploy status
+
+```bash
+# On the server — runner logs
+sudo journalctl -u actions.runner.* -f
+
+# On GitHub — Actions tab shows each deploy with logs
 ```
 
 ## Production Architecture

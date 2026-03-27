@@ -1,0 +1,18 @@
+name: Deploy Trip Report
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # Manual trigger from GitHub UI
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run deploy
+        run: |
+          chmod +x deploy/ci-deploy.sh
+          sudo ./deploy/ci-deploy.sh
