@@ -14,6 +14,7 @@ sudo rsync -a --delete \
   --exclude='venv/' \
   --exclude='uploads/' \
   --exclude='__pycache__/' \
+  --exclude='.env' \
   backend/ "${APP_DIR}/backend/"
 
 echo "===> Installing Python dependencies (if changed)"
