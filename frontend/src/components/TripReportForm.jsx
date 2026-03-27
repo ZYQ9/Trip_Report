@@ -506,26 +506,16 @@ export default function TripReportForm() {
       {/* ---- ATTENDEES ---- */}
       <section className="form-section">
         <h2>Attendees</h2>
-        <div className="attendee-toggles">
-          <label className="toggle-label">
-            <input type="checkbox" checked={showShi} onChange={(e) => setShowShi(e.target.checked)} />
-            <span className="toggle-switch" />
-            SHI
-          </label>
-          <label className="toggle-label">
-            <input type="checkbox" checked={showCustomer} onChange={(e) => setShowCustomer(e.target.checked)} />
-            <span className="toggle-switch" />
-            Customer
-          </label>
-          <label className="toggle-label">
-            <input type="checkbox" checked={showPartner} onChange={(e) => setShowPartner(e.target.checked)} />
-            <span className="toggle-switch" />
-            Partner
-          </label>
-        </div>
-        {showShi && (
-          <div className="attendee-group">
-            <label className="attendee-group-label">SHI Attendees</label>
+
+        <div className="attendee-group">
+          <div className="attendee-group-header">
+            <span className="attendee-group-label">SHI Attendees</span>
+            <label className="toggle-label">
+              <input type="checkbox" checked={showShi} onChange={(e) => setShowShi(e.target.checked)} />
+              <span className="toggle-switch" />
+            </label>
+          </div>
+          {showShi && (
             <textarea
               className="text-area-field"
               value={shiAttendees}
@@ -533,11 +523,18 @@ export default function TripReportForm() {
               placeholder="List SHI attendees (one per line)..."
               rows={3}
             />
+          )}
+        </div>
+
+        <div className="attendee-group">
+          <div className="attendee-group-header">
+            <span className="attendee-group-label">Customer Attendees</span>
+            <label className="toggle-label">
+              <input type="checkbox" checked={showCustomer} onChange={(e) => setShowCustomer(e.target.checked)} />
+              <span className="toggle-switch" />
+            </label>
           </div>
-        )}
-        {showCustomer && (
-          <div className="attendee-group">
-            <label className="attendee-group-label">Customer Attendees</label>
+          {showCustomer && (
             <textarea
               className="text-area-field"
               value={customerAttendees}
@@ -545,11 +542,18 @@ export default function TripReportForm() {
               placeholder="List customer attendees (one per line)..."
               rows={3}
             />
+          )}
+        </div>
+
+        <div className="attendee-group">
+          <div className="attendee-group-header">
+            <span className="attendee-group-label">Partner Attendees</span>
+            <label className="toggle-label">
+              <input type="checkbox" checked={showPartner} onChange={(e) => setShowPartner(e.target.checked)} />
+              <span className="toggle-switch" />
+            </label>
           </div>
-        )}
-        {showPartner && (
-          <div className="attendee-group">
-            <label className="attendee-group-label">Partner Attendees</label>
+          {showPartner && (
             <textarea
               className="text-area-field"
               value={partnerAttendees}
@@ -557,8 +561,8 @@ export default function TripReportForm() {
               placeholder="List partner attendees (one per line)..."
               rows={3}
             />
-          </div>
-        )}
+          )}
+        </div>
       </section>
 
       {/* ---- TECH PROFILE ---- */}

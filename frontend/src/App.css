@@ -115,20 +115,17 @@ body {
 }
 
 /* ---- Image Upload ---- */
-.attendee-toggles {
-  display: flex;
-  gap: 1.5rem;
-  margin-bottom: 0.75rem;
-}
-
 .toggle-label {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #cbd5e1;
   cursor: pointer;
+}
+
+.attendee-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.4rem;
 }
 
 /* Hide the real checkbox */
