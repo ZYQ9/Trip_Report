@@ -69,17 +69,21 @@ async def startup():
 
 @app.post("/api/reports", response_model=ReportOut, status_code=201)
 async def save_report(payload: ReportCreate, db: AsyncSession = Depends(get_db)):
-    report = TripReport(
-        customer=payload.customer,
-        ae=payload.ae,
-        meeting_date=payload.meeting_date,
-        topic=payload.topic,
-        full_report_text=payload.full_report_text,
-    )
-    db.add(report)
-    await db.commit()
-    await db.refresh(report)
-    return report
+    try:
+        report = TripReport(
+            customer=payload.customer,
+            ae=payload.ae,
+            meeting_date=payload.meeting_date,
+            topic=payload.topic,
+            full_report_text=payload.full_report_text,
+        )
+        db.add(report)
+        await db.commit()
+        await db.refresh(report)
+        return report
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail=f"Failed to save report: {e}")
 
 
 @app.post("/api/upload-image", response_model=ImageOut)
