@@ -25,7 +25,7 @@ rsync -a --delete \
 
 echo "===> Installing npm packages (if changed)"
 cd "${APP_DIR}/frontend"
-npm ci --silent
+npm ci
 
 echo "===> Building frontend"
 npm run build
