@@ -56,6 +56,10 @@ body {
   color: #e2e8f0;
 }
 
+.tab:active {
+  transform: scale(0.96);
+}
+
 .tab.active {
   background: #0ea5e9;
   color: #fff;
@@ -200,6 +204,11 @@ body {
   background: rgba(14, 165, 233, 0.1);
 }
 
+.btn-add:active {
+  transform: scale(0.95);
+  background: rgba(14, 165, 233, 0.2);
+}
+
 .btn-remove {
   padding: 0.2rem 0.6rem;
   border: 1px solid #ef4444;
@@ -213,6 +222,11 @@ body {
 
 .btn-remove:hover {
   background: rgba(239, 68, 68, 0.15);
+}
+
+.btn-remove:active {
+  transform: scale(0.95);
+  background: rgba(239, 68, 68, 0.25);
 }
 
 /* ---- Generate / Action Buttons ---- */
@@ -232,11 +246,16 @@ body {
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: all 0.15s;
 }
 
 .btn-generate:hover {
   background: #0284c7;
+}
+
+.btn-generate:active {
+  transform: scale(0.97);
+  background: #0369a1;
 }
 
 .btn-generate:disabled {
@@ -286,7 +305,7 @@ body {
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: all 0.15s;
 }
 
 .btn-copy {
@@ -298,6 +317,11 @@ body {
   background: #22c55e;
 }
 
+.btn-copy:active {
+  transform: scale(0.96);
+  background: #16a34a;
+}
+
 .btn-save {
   background: #a78bfa;
   color: #0f172a;
@@ -305,6 +329,11 @@ body {
 
 .btn-save:hover {
   background: #8b5cf6;
+}
+
+.btn-save:active {
+  transform: scale(0.96);
+  background: #7c3aed;
 }
 
 .btn-save:disabled {
@@ -326,6 +355,11 @@ body {
 
 .btn-delete:hover {
   background: rgba(239, 68, 68, 0.15);
+}
+
+.btn-delete:active {
+  transform: scale(0.96);
+  background: rgba(239, 68, 68, 0.3);
 }
 
 /* ---- Search Results ---- */

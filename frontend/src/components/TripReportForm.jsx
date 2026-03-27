@@ -237,19 +237,45 @@ export default function TripReportForm() {
   // ---- Copy as rich HTML (pastes formatted into Outlook/Gmail) ----
   const handleCopy = async () => {
     try {
-      const blob = new Blob([generatedHtml], { type: "text/html" });
-      const textBlob = new Blob([generatedText], { type: "text/plain" });
-      await navigator.clipboard.write([
-        new ClipboardItem({
-          "text/html": blob,
-          "text/plain": textBlob,
-        }),
-      ]);
+      // Try the modern Clipboard API first (requires HTTPS or localhost)
+      if (navigator.clipboard && window.ClipboardItem && window.isSecureContext) {
+        const blob = new Blob([generatedHtml], { type: "text/html" });
+        const textBlob = new Blob([generatedText], { type: "text/plain" });
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            "text/html": blob,
+            "text/plain": textBlob,
+          }),
+        ]);
+      } else {
+        // Fallback: use execCommand to copy rich HTML (works over HTTP)
+        const temp = document.createElement("div");
+        temp.innerHTML = generatedHtml;
+        temp.style.position = "fixed";
+        temp.style.left = "-9999px";
+        document.body.appendChild(temp);
+
+        const range = document.createRange();
+        range.selectNodeContents(temp);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        document.execCommand("copy");
+        sel.removeAllRanges();
+        document.body.removeChild(temp);
+      }
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Fallback to plain text
-      await navigator.clipboard.writeText(generatedText);
+      // Last resort: plain text
+      const textarea = document.createElement("textarea");
+      textarea.value = generatedText;
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
