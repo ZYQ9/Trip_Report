@@ -31,12 +31,14 @@ export default function TripReportForm() {
   const [techProfile, setTechProfile] = useState("");
   const [meetingNotes, setMeetingNotes] = useState("");
   const [summary, setSummary] = useState("");
-  const [attendees, setAttendees] = useState("");
 
-  // -- Image upload --
-  const [imageFile, setImageFile] = useState(null);
-  const [imageUrl, setImageUrl] = useState("");
-  const [uploading, setUploading] = useState(false);
+  // -- Attendees (toggled sections) --
+  const [showShi, setShowShi] = useState(false);
+  const [showCustomer, setShowCustomer] = useState(false);
+  const [showPartner, setShowPartner] = useState(false);
+  const [shiAttendees, setShiAttendees] = useState("");
+  const [customerAttendees, setCustomerAttendees] = useState("");
+  const [partnerAttendees, setPartnerAttendees] = useState("");
 
   // -- Dynamic blocks --
   const [opps, setOpps] = useState([emptyOpp()]);
@@ -63,24 +65,6 @@ export default function TripReportForm() {
   };
   const addAction = () => setActions((prev) => [...prev, emptyAction()]);
   const removeAction = (idx) => setActions((prev) => prev.filter((_, i) => i !== idx));
-
-  // ---- Image upload ----
-  const handleImageUpload = async () => {
-    if (!imageFile) return;
-    setUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append("file", imageFile);
-      const res = await fetch("/api/upload-image", { method: "POST", body: fd });
-      if (!res.ok) throw new Error("Upload failed");
-      const data = await res.json();
-      setImageUrl(data.url);
-    } catch (err) {
-      alert("Image upload failed: " + err.message);
-    } finally {
-      setUploading(false);
-    }
-  };
 
   // ---- Format date nicely ----
   const formatDate = (dateStr) => {
@@ -168,8 +152,25 @@ export default function TripReportForm() {
     });
 
     html += `
-  <h2 style="color: #2b6cb0; font-size: 16px; margin: 24px 0 8px 0; border: none;">Attendees</h2>
-  <div style="font-size: 14px; margin-bottom: 16px;">${attendees.trim() ? nl2br(attendees) : "<em style='color:#999;'>—</em>"}</div>
+  <h2 style="color: #2b6cb0; font-size: 16px; margin: 24px 0 8px 0; border: none;">Attendees</h2>`;
+
+    const attendeeSections = [];
+    if (showShi && shiAttendees.trim()) attendeeSections.push({ label: "SHI", text: shiAttendees });
+    if (showCustomer && customerAttendees.trim()) attendeeSections.push({ label: "Customer", text: customerAttendees });
+    if (showPartner && partnerAttendees.trim()) attendeeSections.push({ label: "Partner", text: partnerAttendees });
+
+    if (attendeeSections.length > 0) {
+      attendeeSections.forEach((s) => {
+        html += `
+  <div style="font-size: 14px; margin-bottom: 8px;">
+    <strong>${esc(s.label)}:</strong><br>${nl2br(s.text)}
+  </div>`;
+      });
+    } else {
+      html += `<div style="font-size: 14px; margin-bottom: 16px; color: #999;"><em>—</em></div>`;
+    }
+
+    html += `
 
   <h2 style="color: #2b6cb0; font-size: 16px; margin: 24px 0 8px 0; border: none;">Tech Profile Updates</h2>
   <div style="font-size: 14px; margin-bottom: 16px;">${techProfile.trim() ? nl2br(techProfile) : "<em style='color:#999;'>—</em>"}</div>
@@ -216,7 +217,10 @@ export default function TripReportForm() {
     });
     lines.push("");
     lines.push("--- Attendees ---");
-    lines.push(attendees || "—");
+    if (showShi && shiAttendees.trim()) { lines.push("SHI:"); lines.push(shiAttendees); }
+    if (showCustomer && customerAttendees.trim()) { lines.push("Customer:"); lines.push(customerAttendees); }
+    if (showPartner && partnerAttendees.trim()) { lines.push("Partner:"); lines.push(partnerAttendees); }
+    if (!((showShi && shiAttendees.trim()) || (showCustomer && customerAttendees.trim()) || (showPartner && partnerAttendees.trim()))) lines.push("—");
     lines.push("");
     lines.push("--- Tech Profile Updates ---");
     lines.push(techProfile || "—");
@@ -375,25 +379,6 @@ export default function TripReportForm() {
         </div>
       </section>
 
-      {/* ---- IMAGE UPLOAD ---- */}
-      <section className="form-section">
-        <h2>Participants Image</h2>
-        <div className="image-upload-row">
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => setImageFile(e.target.files[0])}
-          />
-          <button onClick={handleImageUpload} disabled={!imageFile || uploading}>
-            {uploading ? "Uploading..." : "Upload"}
-          </button>
-          {imageUrl && <span className="upload-ok">Uploaded</span>}
-        </div>
-        {imageUrl && (
-          <img src={imageUrl} alt="Participants" className="participants-preview" />
-        )}
-      </section>
-
       {/* ---- SUMMARY ---- */}
       <section className="form-section">
         <h2>Summary</h2>
@@ -521,13 +506,56 @@ export default function TripReportForm() {
       {/* ---- ATTENDEES ---- */}
       <section className="form-section">
         <h2>Attendees</h2>
-        <textarea
-          className="text-area-field"
-          value={attendees}
-          onChange={(e) => setAttendees(e.target.value)}
-          placeholder="List attendees (one per line)..."
-          rows={4}
-        />
+        <div className="attendee-toggles">
+          <label className="toggle-label">
+            <input type="checkbox" checked={showShi} onChange={(e) => setShowShi(e.target.checked)} />
+            SHI
+          </label>
+          <label className="toggle-label">
+            <input type="checkbox" checked={showCustomer} onChange={(e) => setShowCustomer(e.target.checked)} />
+            Customer
+          </label>
+          <label className="toggle-label">
+            <input type="checkbox" checked={showPartner} onChange={(e) => setShowPartner(e.target.checked)} />
+            Partner
+          </label>
+        </div>
+        {showShi && (
+          <div className="attendee-group">
+            <label className="attendee-group-label">SHI Attendees</label>
+            <textarea
+              className="text-area-field"
+              value={shiAttendees}
+              onChange={(e) => setShiAttendees(e.target.value)}
+              placeholder="List SHI attendees (one per line)..."
+              rows={3}
+            />
+          </div>
+        )}
+        {showCustomer && (
+          <div className="attendee-group">
+            <label className="attendee-group-label">Customer Attendees</label>
+            <textarea
+              className="text-area-field"
+              value={customerAttendees}
+              onChange={(e) => setCustomerAttendees(e.target.value)}
+              placeholder="List customer attendees (one per line)..."
+              rows={3}
+            />
+          </div>
+        )}
+        {showPartner && (
+          <div className="attendee-group">
+            <label className="attendee-group-label">Partner Attendees</label>
+            <textarea
+              className="text-area-field"
+              value={partnerAttendees}
+              onChange={(e) => setPartnerAttendees(e.target.value)}
+              placeholder="List partner attendees (one per line)..."
+              rows={3}
+            />
+          </div>
+        )}
       </section>
 
       {/* ---- TECH PROFILE ---- */}
