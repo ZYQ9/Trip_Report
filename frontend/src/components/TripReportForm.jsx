@@ -284,6 +284,10 @@ export default function TripReportForm() {
   // ---- Save to DB ----
   const handleSave = async () => {
     if (!generatedText) return;
+    if (!meetingDate) {
+      alert("Meeting Date is required before saving.");
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch("/api/reports", {
@@ -297,7 +301,10 @@ export default function TripReportForm() {
           full_report_text: generatedText,
         }),
       });
-      if (!res.ok) throw new Error("Save failed");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.detail || `Save failed (${res.status})`);
+      }
       setSaved(true);
     } catch (err) {
       alert("Save failed: " + err.message);

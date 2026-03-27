@@ -35,7 +35,7 @@ app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 class ReportCreate(BaseModel):
     customer: str
     ae: str
-    meeting_date: str
+    meeting_date: datetime.date
     topic: str
     full_report_text: str
 

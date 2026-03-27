@@ -34,11 +34,11 @@ fi
 cat > /etc/sudoers.d/github-runner << 'SUDOERS'
 github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart trip-report
 github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload nginx
-github-runner ALL=(ALL) NOPASSWD: /opt/trip-report/deploy/ci-deploy.sh
 github-runner ALL=(ALL) NOPASSWD: /usr/bin/rsync *
 github-runner ALL=(ALL) NOPASSWD: /usr/bin/chown *
 github-runner ALL=(ALL) NOPASSWD: /usr/bin/chmod *
 github-runner ALL=(ALL) NOPASSWD: /usr/bin/npm *
+github-runner ALL=(ALL) NOPASSWD: /opt/trip-report/backend/venv/bin/pip *
 SUDOERS
 chmod 440 /etc/sudoers.d/github-runner
 

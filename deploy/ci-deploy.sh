@@ -10,40 +10,40 @@ APP_DIR="/opt/trip-report"
 WORKSPACE_DIR=$(pwd)
 
 echo "===> Syncing backend"
-rsync -a --delete \
+sudo rsync -a --delete \
   --exclude='venv/' \
   --exclude='uploads/' \
   --exclude='__pycache__/' \
   backend/ "${APP_DIR}/backend/"
 
 echo "===> Installing Python dependencies (if changed)"
-"${APP_DIR}/backend/venv/bin/pip" install -q -r "${APP_DIR}/backend/requirements.txt"
+sudo "${APP_DIR}/backend/venv/bin/pip" install -q -r "${APP_DIR}/backend/requirements.txt"
 
 echo "===> Syncing frontend source"
-rsync -a --delete \
+sudo rsync -a --delete \
   --exclude='node_modules/' \
   --exclude='dist/' \
   frontend/ "${APP_DIR}/frontend/"
 
 echo "===> Installing npm packages (if changed)"
 cd "${APP_DIR}/frontend"
-npm ci
+sudo npm ci
 
 echo "===> Building frontend"
-npm run build
+sudo npm run build
 
 echo "===> Updating deploy scripts"
 cd "${WORKSPACE_DIR}"
 
-rsync -a deploy/ "${APP_DIR}/deploy/"
-chmod +x "${APP_DIR}/deploy/"*.sh
+sudo rsync -a deploy/ "${APP_DIR}/deploy/"
+sudo chmod +x "${APP_DIR}/deploy/"*.sh
 
 echo "===> Setting permissions"
-chown -R tripreport:tripreport "${APP_DIR}/backend" "${APP_DIR}/frontend"
-chown -R postgres:postgres "${APP_DIR}/backups" 2>/dev/null || true
+sudo chown -R tripreport:tripreport "${APP_DIR}/backend" "${APP_DIR}/frontend"
+sudo chown -R postgres:postgres "${APP_DIR}/backups" 2>/dev/null || true
 
 echo "===> Restarting services"
-systemctl restart trip-report
-systemctl reload nginx
+sudo systemctl restart trip-report
+sudo systemctl reload nginx
 
 echo "===> Deploy complete at $(date)"
