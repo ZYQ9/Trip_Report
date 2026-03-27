@@ -7,6 +7,8 @@ set -euo pipefail
 
 APP_DIR="/opt/trip-report"
 
+WORKSPACE_DIR=$(pwd)
+
 echo "===> Syncing backend"
 rsync -a --delete \
   --exclude='venv/' \
@@ -31,6 +33,8 @@ echo "===> Building frontend"
 npm run build
 
 echo "===> Updating deploy scripts"
+cd "${WORKSPACE_DIR}"
+
 rsync -a deploy/ "${APP_DIR}/deploy/"
 chmod +x "${APP_DIR}/deploy/"*.sh
 
