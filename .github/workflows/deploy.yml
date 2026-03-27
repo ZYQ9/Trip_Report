@@ -15,4 +15,4 @@ jobs:
       - name: Run deploy
         run: | # run scripts for the github actions
           chmod +x deploy/ci-deploy.sh
-          sudo ./deploy/ci-deploy.sh
+          sudo env "PATH=$PATH" ./deploy/ci-deploy.sh
