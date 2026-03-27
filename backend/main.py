@@ -26,6 +26,10 @@ REPORTS_DIR = Path(os.getenv(
 ))
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
+# Metadata marker used to embed/extract metadata from HTML files
+META_START = "<!--TRIPREPORT_META:"
+META_END = ":TRIPREPORT_META-->"
+
 
 # ---------- Schemas ----------
 
@@ -72,10 +76,22 @@ def build_filename(date: datetime.date, customer: str, topic: str) -> str:
     return f"{date.isoformat()}_{safe_customer}_{safe_topic}"
 
 
-def load_metadata(json_path: Path) -> Optional[dict]:
-    """Load a report's metadata JSON."""
+def embed_metadata(html: str, metadata: dict) -> str:
+    """Append a hidden HTML comment containing the metadata JSON."""
+    meta_json = json.dumps(metadata, ensure_ascii=False)
+    return f"{html}\n{META_START}{meta_json}{META_END}\n"
+
+
+def extract_metadata(html_path: Path) -> Optional[dict]:
+    """Extract metadata from the hidden comment in an HTML file."""
     try:
-        return json.loads(json_path.read_text(encoding="utf-8"))
+        content = html_path.read_text(encoding="utf-8")
+        start = content.rfind(META_START)
+        end = content.rfind(META_END)
+        if start == -1 or end == -1:
+            return None
+        json_str = content[start + len(META_START):end]
+        return json.loads(json_str)
     except Exception:
         return None
 
@@ -88,8 +104,8 @@ def scan_reports() -> list[dict]:
     for customer_dir in sorted(REPORTS_DIR.iterdir()):
         if not customer_dir.is_dir():
             continue
-        for json_file in sorted(customer_dir.glob("*.json"), reverse=True):
-            meta = load_metadata(json_file)
+        for html_file in sorted(customer_dir.glob("*.html"), reverse=True):
+            meta = extract_metadata(html_file)
             if meta:
                 reports.append(meta)
     reports.sort(key=lambda r: r.get("meeting_date", ""), reverse=True)
@@ -110,22 +126,16 @@ async def save_report(payload: ReportCreate):
 
         # Handle duplicates by appending a number
         html_path = customer_folder / f"{base_name}.html"
-        json_path = customer_folder / f"{base_name}.json"
         counter = 1
-        while html_path.exists() or json_path.exists():
+        while html_path.exists():
             counter += 1
             html_path = customer_folder / f"{base_name}_{counter}.html"
-            json_path = customer_folder / f"{base_name}_{counter}.json"
 
         # The report ID is the relative path (without extension)
         report_id = str(html_path.relative_to(REPORTS_DIR).with_suffix(""))
 
         now = datetime.datetime.now().isoformat()
 
-        # Save HTML file
-        html_path.write_text(payload.html_content, encoding="utf-8")
-
-        # Save metadata JSON
         metadata = {
             "id": report_id,
             "customer": payload.customer,
@@ -139,7 +149,10 @@ async def save_report(payload: ReportCreate):
             "crm_link": payload.crm_link,
             "created_at": now,
         }
-        json_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+
+        # Embed metadata into the HTML and save as a single file
+        html_with_meta = embed_metadata(payload.html_content, metadata)
+        html_path.write_text(html_with_meta, encoding="utf-8")
 
         return ReportOut(**{**metadata, "meeting_date": payload.meeting_date, "created_at": now})
 
@@ -192,10 +205,10 @@ async def search_reports(
 
 @app.get("/api/reports/{report_id:path}", response_model=ReportOut)
 async def get_report(report_id: str):
-    json_path = REPORTS_DIR / f"{report_id}.json"
-    if not json_path.exists():
+    html_path = REPORTS_DIR / f"{report_id}.html"
+    if not html_path.exists():
         raise HTTPException(404, "Report not found")
-    meta = load_metadata(json_path)
+    meta = extract_metadata(html_path)
     if not meta:
         raise HTTPException(500, "Could not read report metadata")
     return ReportOut(**meta)
@@ -203,18 +216,14 @@ async def get_report(report_id: str):
 
 @app.delete("/api/reports/{report_id:path}", status_code=204)
 async def delete_report(report_id: str):
-    json_path = REPORTS_DIR / f"{report_id}.json"
     html_path = REPORTS_DIR / f"{report_id}.html"
 
-    if not json_path.exists() and not html_path.exists():
+    if not html_path.exists():
         raise HTTPException(404, "Report not found")
 
-    if json_path.exists():
-        json_path.unlink()
-    if html_path.exists():
-        html_path.unlink()
+    html_path.unlink()
 
     # Remove customer folder if empty
-    parent = json_path.parent
+    parent = html_path.parent
     if parent != REPORTS_DIR and parent.exists() and not any(parent.iterdir()):
         parent.rmdir()
