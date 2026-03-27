@@ -303,6 +303,11 @@ export default function TripReportForm() {
           meeting_date: meetingDate,
           topic,
           full_report_text: generatedText,
+          html_content: generatedHtml,
+          district,
+          meeting_type: meetingType,
+          meeting_format: meetingFormat,
+          crm_link: crmLink,
         }),
       });
       if (!res.ok) {
