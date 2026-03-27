@@ -509,14 +509,17 @@ export default function TripReportForm() {
         <div className="attendee-toggles">
           <label className="toggle-label">
             <input type="checkbox" checked={showShi} onChange={(e) => setShowShi(e.target.checked)} />
+            <span className="toggle-switch" />
             SHI
           </label>
           <label className="toggle-label">
             <input type="checkbox" checked={showCustomer} onChange={(e) => setShowCustomer(e.target.checked)} />
+            <span className="toggle-switch" />
             Customer
           </label>
           <label className="toggle-label">
             <input type="checkbox" checked={showPartner} onChange={(e) => setShowPartner(e.target.checked)} />
+            <span className="toggle-switch" />
             Partner
           </label>
         </div>
