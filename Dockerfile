@@ -1,11 +1,11 @@
-FROM node:20-slim AS frontend
+FROM node:20-alpine AS frontend
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci
 COPY frontend/ ./
 RUN npm run build
 
-FROM python:3.12-slim
+FROM python:3.12-alpine
 WORKDIR /app
 COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
