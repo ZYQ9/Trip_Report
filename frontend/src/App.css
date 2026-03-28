@@ -383,6 +383,20 @@ body {
   cursor: not-allowed;
 }
 
+.btn-clear {
+  background: #64748b;
+  color: #fff;
+}
+
+.btn-clear:hover {
+  background: #475569;
+}
+
+.btn-clear:active {
+  transform: scale(0.96);
+  background: #334155;
+}
+
 .btn-delete {
   padding: 0.5rem 1.25rem;
   border: 1px solid #ef4444;

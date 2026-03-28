@@ -230,6 +230,35 @@ export default function TripReportForm() {
     return lines.join("\n");
   };
 
+  // ---- Clear all fields ----
+  const handleClear = () => {
+    if (!window.confirm("Are you sure you want to clear all fields?")) return;
+    setCustomer("");
+    setAe("");
+    setTopic("");
+    setDistrict("");
+    setMeetingDate("");
+    setMeetingType(MEETING_TYPES[0]);
+    setMeetingFormat(MEETING_FORMATS[0]);
+    setCrmLink("");
+    setTechProfile("");
+    setMeetingNotes("");
+    setSummary("");
+    setShowShi(false);
+    setShowCustomer(false);
+    setShowPartner(false);
+    setShiAttendees("");
+    setCustomerAttendees("");
+    setPartnerAttendees("");
+    setOpps([emptyOpp()]);
+    setActions([emptyAction()]);
+    setGeneratedHtml("");
+    setGeneratedText("");
+    setSaving(false);
+    setSaved(false);
+    setCopied(false);
+  };
+
   // ---- Generate ----
   const handleGenerate = () => {
     setGeneratedHtml(compileHtml());
@@ -620,6 +649,9 @@ export default function TripReportForm() {
               disabled={saving || saved}
             >
               {saved ? "Saved to DB" : saving ? "Saving..." : "Save to Database"}
+            </button>
+            <button className="btn-clear" onClick={handleClear}>
+              Clear Form
             </button>
           </div>
         </section>
