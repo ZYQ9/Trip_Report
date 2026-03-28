@@ -1,247 +1,129 @@
 # Trip Report Generator
 
-Manual data-entry web app for generating formatted Trip Reports for CRM copy/paste.
+Manual data-entry web app for generating formatted Trip Reports. Reports are saved as HTML files to your OneDrive, organized by customer folder.
 
 ## Architecture
 
 ```
 trip_report/
-├── schema.sql                 # PostgreSQL table DDL
+├── Dockerfile                 # Docker build (single image, frontend + backend)
+├── .dockerignore
 ├── backend/
-│   ├── main.py                # FastAPI routes
-│   ├── models.py              # SQLAlchemy model
-│   ├── database.py            # Async DB connection
-│   ├── requirements.txt       # Python deps
-│   └── uploads/               # Uploaded images
+│   ├── main.py                # FastAPI routes + file-based storage
+│   └── requirements.txt       # Python deps
 ├── frontend/
 │   ├── package.json
-│   ├── vite.config.js          # Dev proxy to backend
+│   ├── vite.config.js         # Dev proxy to backend
 │   └── src/
-│       ├── App.jsx             # Tab navigation
-│       ├── App.css             # All styling
+│       ├── App.jsx            # Tab navigation
+│       ├── App.css            # All styling
 │       └── components/
-│           ├── TripReportForm.jsx   # Data entry + text compiler
+│           ├── TripReportForm.jsx   # Data entry + HTML compiler
 │           └── SearchReports.jsx    # Search/filter history
-├── deploy/
-│   ├── setup.sh                    # One-shot Ubuntu deployment script
-│   ├── ci-deploy.sh                # CI/CD deploy (called by GitHub Actions)
-│   ├── install-runner.sh           # GitHub Actions self-hosted runner install
-│   ├── trip-report.service         # systemd unit (app)
-│   ├── trip-report-backup.service  # systemd unit (backup oneshot)
-│   ├── trip-report-backup.timer    # systemd timer (nightly 2 AM)
-│   ├── backup.sh                   # pg_dump + image tar + rotation
-│   ├── restore.sh                  # Interactive restore from backup
-│   ├── tripreport.nginx.conf       # Nginx reverse proxy config
-│   └── .env.example                # Environment variable template
 └── .github/
     └── workflows/
-        └── deploy.yml              # GitHub Actions workflow
+        └── deploy.yml         # GitHub Actions workflow (server deploy)
 ```
 
-## Production Deployment (Ubuntu)
+## Quick Start (Docker)
 
-Target: Ubuntu 22.04+ or 24.04 LTS (bare metal, VM, or Proxmox LXC).
+### Prerequisites
 
-### Quick deploy
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running
+- OneDrive syncing on your machine
+
+### Build the image
 
 ```bash
-# Copy the project to the server
-scp -r trip_report/ user@your-server:/tmp/trip_report
-
-# SSH in and run setup
-ssh user@your-server
-cd /tmp/trip_report
-chmod +x deploy/setup.sh
-sudo ./deploy/setup.sh
+cd trip_report
+docker build -t tripreport .
 ```
 
-The script installs all dependencies, creates the DB, builds the frontend, and starts services.
+### Run
 
-### Post-install (required)
+**Mac:**
+```bash
+docker run -d -p 8000:8000 \
+  -v "$HOME/OneDrive - Shi International Corp/trip_reports:/data" \
+  -e REPORTS_DIR=/data \
+  --name tripreport tripreport
+```
+
+**Windows (PowerShell):**
+```powershell
+docker run -d -p 8000:8000 `
+  -v "$env:USERPROFILE/OneDrive - Shi International Corp/trip_reports:/data" `
+  -e REPORTS_DIR=/data `
+  --name tripreport tripreport
+```
+
+**Windows (Command Prompt):**
+```cmd
+docker run -d -p 8000:8000 -v "%USERPROFILE%\OneDrive - Shi International Corp\trip_reports:/data" -e REPORTS_DIR=/data --name tripreport tripreport
+```
+
+Then open **http://localhost:8000**
+
+### Stop / Start / Remove
 
 ```bash
-# 1. Set a real database password
-sudo -u postgres psql -c "ALTER USER tripreport WITH PASSWORD 'your_secure_password';"
+# Stop the app
+docker stop tripreport
 
-# 2. Update the env file to match
-sudo nano /opt/trip-report/.env
-# Change: DATABASE_URL=postgresql+asyncpg://tripreport:your_secure_password@localhost:5432/trip_reports
+# Start it again
+docker start tripreport
 
-# 3. Restart
-sudo systemctl restart trip-report
+# Remove the container (reports in OneDrive are not affected)
+docker rm tripreport
 ```
 
-### What the deploy script creates
-
-| Component | Detail |
-|---|---|
-| System user | `tripreport` (no-login, runs the API) |
-| App location | `/opt/trip-report/` |
-| PostgreSQL | DB `trip_reports`, user `tripreport` |
-| FastAPI | systemd service `trip-report`, port 8000 (localhost only) |
-| Nginx | Reverse proxy on port 80, serves React build + proxies `/api` |
-| Uploads | `/opt/trip-report/backend/uploads/`, served by Nginx |
-| Backups | Nightly at 2 AM, 30-day retention, `/opt/trip-report/backups/` |
-
-### Management commands
-
-```bash
-# Service status
-sudo systemctl status trip-report
-
-# View logs
-sudo journalctl -u trip-report -f
-
-# Restart after config changes
-sudo systemctl restart trip-report
-
-# Redeploy frontend only
-cd /opt/trip-report/frontend && npm run build && sudo systemctl reload nginx
-
-# Add HTTPS (optional)
-sudo apt install certbot python3-certbot-nginx
-sudo certbot --nginx
-```
-
-## Backup & Restore
-
-Automated nightly backups are installed by the deploy script. Both the PostgreSQL database and uploaded images are backed up.
-
-### How it works
-
-- **Schedule:** Every night at 2:00 AM (systemd timer)
-- **Retention:** 30 days, older backups auto-deleted
-- **Location:** `/opt/trip-report/backups/`
-- **Contents:** `trip_reports_YYYY-MM-DD.sql.gz` (database) + `uploads_YYYY-MM-DD.tar.gz` (images)
-
-### Backup commands
-
-```bash
-# Check backup timer status
-systemctl list-timers trip-report-backup.timer
-
-# Run a manual backup now
-sudo -u postgres /opt/trip-report/deploy/backup.sh
-
-# View backup logs
-sudo journalctl -u trip-report-backup.service
-
-# List all backups
-ls -lh /opt/trip-report/backups/
-```
-
-### Restore from backup
-
-```bash
-# Interactive — lists backups and lets you pick one
-sudo /opt/trip-report/deploy/restore.sh
-
-# Direct — specify the backup file
-sudo /opt/trip-report/deploy/restore.sh /opt/trip-report/backups/trip_reports_2026-03-25_020000.sql.gz
-```
-
-The restore script will:
-1. Stop the app
-2. Drop and recreate the database from the backup
-3. Restore uploaded images (auto-matches the same timestamp)
-4. Restart the app
-
-### Offsite backup (recommended)
-
-Local backups protect against accidental deletion. For hardware failure protection, sync offsite:
-
-```bash
-# Example: rsync to a NAS or second server (add to crontab after backup runs)
-30 2 * * * rsync -az /opt/trip-report/backups/ user@nas:/backups/trip-report/
-
-# Example: sync to S3-compatible storage
-30 2 * * * aws s3 sync /opt/trip-report/backups/ s3://your-bucket/trip-report-backups/
-```
-
-## CI/CD Pipeline
-
-Deploys automatically when you push to `main` via a self-hosted GitHub Actions runner on the server.
-
-### How it works
+## How Storage Works
 
 ```
-git push origin main
-       │
-       ▼
-GitHub Actions ──► self-hosted runner on server
-                      │
-                      ├── rsync backend + frontend source
-                      ├── pip install (if deps changed)
-                      ├── npm ci + npm run build
-                      ├── set permissions
-                      └── systemctl restart trip-report + reload nginx
+OneDrive - Shi International Corp/
+└── trip_reports/
+    ├── Acme-Corp/
+    │   ├── 2026-03-15_Acme-Corp_Discovery-Call.html
+    │   └── 2026-03-27_Acme-Corp_QBR-Review.html
+    ├── Contoso/
+    │   └── 2026-03-20_Contoso_POC-Demo.html
+    └── Fabrikam/
+        └── 2026-03-22_Fabrikam_Technical-Deep-Dive.html
 ```
 
-### One-time runner setup
-
-1. Go to your GitHub repo → **Settings → Actions → Runners → New self-hosted runner**
-2. Copy the **token** (it expires quickly, use it right away)
-3. On the server:
-
-```bash
-cd /tmp/trip_report
-chmod +x deploy/install-runner.sh
-sudo ./deploy/install-runner.sh https://github.com/YOUR_USER/YOUR_REPO YOUR_TOKEN
-```
-
-4. Verify the runner appears as "Online" in GitHub Settings → Actions → Runners
-
-### Workflow triggers
-
-- **Auto:** Every push to `main`
-- **Manual:** GitHub repo → Actions → "Deploy Trip Report" → Run workflow
-
-### Viewing deploy status
-
-```bash
-# On the server — runner logs
-sudo journalctl -u actions.runner.* -f
-
-# On GitHub — Actions tab shows each deploy with logs
-```
-
-## Production Architecture
-
-```
-Browser ──► Nginx :80/443
-              ├── /           → React static build (dist/)
-              ├── /api/*      → proxy_pass → uvicorn :8000
-              └── /uploads/*  → static files (alias)
-```
+- Each customer gets their own folder (created automatically)
+- Reports are named `YYYY-MM-DD_Customer_Topic.html`
+- Files sync to OneDrive automatically
+- Metadata is embedded in the HTML file (invisible in browser, used for search)
+- Deleting a report from the app removes the file; deleting the last report removes the customer folder
 
 ## API Endpoints
 
 | Method | Route                | Description             |
 |--------|----------------------|-------------------------|
-| POST   | `/api/reports`       | Save a compiled report  |
+| POST   | `/api/reports`       | Save a new report       |
 | GET    | `/api/reports`       | Search/filter reports   |
 | GET    | `/api/reports/{id}`  | Get a single report     |
-| POST   | `/api/upload-image`  | Upload participants img |
+| DELETE | `/api/reports/{id}`  | Delete a report         |
 
 ### Search query params
 
-- `customer` - partial match
-- `ae` - partial match
-- `topic` - partial match
-- `date_from` / `date_to` - date range
-- `q` - free-text search across all fields
+- `customer` — partial match
+- `ae` — partial match
+- `topic` — partial match
+- `date_from` / `date_to` — date range
+- `q` — free-text search across all fields
 
 ## Usage
 
-1. Open `http://<your-server-ip>`
-2. Fill in meeting metadata, upload participant image, add Opps and Action Items
-3. Click **Generate Trip Report** to compile everything into formatted text
-4. **Copy to Clipboard** for CRM paste, and/or **Save to Database** for history
-5. Use the **Search Reports** tab to find past reports by customer, AE, date, or topic
+1. Open **http://localhost:8000**
+2. Fill in meeting metadata, add Opps and Action Items, toggle Attendee sections
+3. Click **Generate Trip Report** to compile into formatted HTML
+4. **Copy for Email** to paste formatted into Outlook/Gmail
+5. **Save to Database** to write the HTML file to your OneDrive
+6. Use the **Search Reports** tab to find past reports by customer, AE, date, or topic
 
-## Local Development
-
-For local dev work, you can still run the Vite dev server + uvicorn directly:
+## Local Development (without Docker)
 
 ```bash
 # Backend
@@ -254,3 +136,7 @@ cd frontend && npm install && npm run dev
 ```
 
 Vite dev server at `http://localhost:5173` proxies `/api` to the backend automatically.
+
+## Server Deployment (Ubuntu)
+
+The `deploy/` directory and `main` branch contain the original server-based deployment with PostgreSQL, Nginx, systemd services, backup/restore, and CI/CD via self-hosted GitHub Actions runner. See the `main` branch README for those instructions.
