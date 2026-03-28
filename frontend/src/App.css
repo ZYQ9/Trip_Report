@@ -38,6 +38,7 @@ body {
   display: flex;
   justify-content: center;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .tab {
@@ -64,6 +65,42 @@ body {
   background: #0ea5e9;
   color: #fff;
   border-color: #0ea5e9;
+}
+
+.report-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+.tab-label {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-close {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.2rem;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+
+.tab-close:hover {
+  opacity: 1;
+}
+
+.tab-add {
+  padding: 0.5rem 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 700;
 }
 
 /* ---- Form Sections ---- */

@@ -16,7 +16,7 @@ const MEETING_FORMATS = ["#Virtual", "#Onsite"];
 const emptyOpp = () => ({ name: "", b: "", a: "", n: "", t: "", c: "" });
 const emptyAction = () => ({ nextSteps: "", owner: "", dueDate: "" });
 
-export default function TripReportForm() {
+export default function TripReportForm({ onCustomerChange }) {
   // -- Metadata --
   const [customer, setCustomer] = useState("");
   const [ae, setAe] = useState("");
@@ -360,7 +360,7 @@ export default function TripReportForm() {
         <div className="field-grid">
           <label>
             Customer
-            <input value={customer} onChange={(e) => setCustomer(e.target.value)} />
+            <input value={customer} onChange={(e) => { setCustomer(e.target.value); onCustomerChange?.(e.target.value); }} />
           </label>
           <label>
             AE
