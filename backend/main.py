@@ -7,6 +7,8 @@ from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 app = FastAPI(title="Trip Report API")
@@ -18,6 +20,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Serve built React frontend
+FRONTEND_DIR = Path(__file__).parent.parent / "frontend" / "dist"
 
 # Reports root directory (OneDrive)
 REPORTS_DIR = Path(os.getenv(
@@ -227,3 +232,18 @@ async def delete_report(report_id: str):
     parent = html_path.parent
     if parent != REPORTS_DIR and parent.exists() and not any(parent.iterdir()):
         parent.rmdir()
+
+
+# ---------- Serve React frontend ----------
+
+if FRONTEND_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIR / "assets")), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        # Try to serve the exact file first (e.g. favicon, manifest)
+        file_path = FRONTEND_DIR / full_path
+        if full_path and file_path.exists() and file_path.is_file():
+            return FileResponse(file_path)
+        # Otherwise serve index.html (React SPA routing)
+        return FileResponse(FRONTEND_DIR / "index.html")
