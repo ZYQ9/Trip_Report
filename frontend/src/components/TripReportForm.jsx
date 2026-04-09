@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import RichTextEditor from "./RichTextEditor.jsx";
 
 const MEETING_TYPES = [
   "Discovery",
@@ -66,6 +67,26 @@ export default function TripReportForm({ onCustomerChange }) {
   const addAction = () => setActions((prev) => [...prev, emptyAction()]);
   const removeAction = (idx) => setActions((prev) => prev.filter((_, i) => i !== idx));
 
+  const isRichTextEmpty = (html) => {
+    if (!html) return true;
+    const tmp = document.createElement("div");
+    tmp.innerHTML = html;
+    return !tmp.textContent.trim() && !tmp.querySelector("img, video, iframe");
+  };
+
+  // ---- Convert HTML notes to readable plain text ----
+  const richTextToPlainText = (html) => {
+    if (isRichTextEmpty(html)) return "";
+    const tmp = document.createElement("div");
+    tmp.innerHTML = html;
+
+    tmp.querySelectorAll("br").forEach((br) => br.replaceWith("\n"));
+    tmp.querySelectorAll("li").forEach((li) => li.prepend("• "));
+    tmp.querySelectorAll("p, div, ul, ol, li").forEach((node) => node.append("\n"));
+
+    return (tmp.textContent || tmp.innerText || "").replace(/\n{3,}/g, "\n\n").trim();
+  };
+
   // ---- Format date nicely ----
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
@@ -76,6 +97,34 @@ export default function TripReportForm({ onCustomerChange }) {
       month: "long",
       day: "numeric",
     });
+  };
+
+  // ---- Inline list styles for email output ----
+  const styleListHtml = (html) => {
+    // Parse into DOM to handle nesting properly
+    const tmp = document.createElement("div");
+    tmp.innerHTML = html;
+
+    const styleLists = (el, depth) => {
+      el.querySelectorAll(":scope > ul, :scope > ol").forEach((list) => {
+        const indent = depth * 1.5;
+        list.style.margin = "4px 0";
+        list.style.paddingLeft = `${indent}em`;
+        list.style.listStylePosition = "outside";
+
+        list.querySelectorAll(":scope > li").forEach((li) => {
+          li.style.margin = "2px 0";
+        });
+
+        // Recurse for nested lists inside each li
+        list.querySelectorAll(":scope > li").forEach((li) => {
+          styleLists(li, depth + 1);
+        });
+      });
+    };
+
+    styleLists(tmp, 1);
+    return tmp.innerHTML;
   };
 
   // ======== HTML COMPILER (for email) ========
@@ -176,7 +225,7 @@ export default function TripReportForm({ onCustomerChange }) {
   <div style="font-size: 14px; margin-bottom: 16px;">${techProfile.trim() ? nl2br(techProfile) : "<em style='color:#999;'>—</em>"}</div>
 
   <h2 style="color: #2b6cb0; font-size: 16px; margin: 24px 0 8px 0; border: none;">Meeting Notes</h2>
-  <div style="font-size: 14px; margin-bottom: 16px;">${meetingNotes.trim() ? nl2br(meetingNotes) : "<em style='color:#999;'>—</em>"}</div>
+  <div style="font-size: 14px; margin-bottom: 16px;">${!isRichTextEmpty(meetingNotes) ? styleListHtml(meetingNotes) : "<em style='color:#999;'>—</em>"}</div>
 
 </div>`;
 
@@ -226,7 +275,7 @@ export default function TripReportForm({ onCustomerChange }) {
     lines.push(techProfile || "—");
     lines.push("");
     lines.push("--- Meeting Notes ---");
-    lines.push(meetingNotes || "—");
+    lines.push(!isRichTextEmpty(meetingNotes) ? richTextToPlainText(meetingNotes) : "—");
     return lines.join("\n");
   };
 
@@ -614,12 +663,10 @@ export default function TripReportForm({ onCustomerChange }) {
       {/* ---- MEETING NOTES ---- */}
       <section className="form-section">
         <h2>Meeting Notes</h2>
-        <textarea
-          className="text-area-field"
+        <RichTextEditor
           value={meetingNotes}
-          onChange={(e) => setMeetingNotes(e.target.value)}
+          onChange={setMeetingNotes}
           placeholder="Free-form meeting notes..."
-          rows={6}
         />
       </section>
 
