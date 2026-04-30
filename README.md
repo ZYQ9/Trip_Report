@@ -42,6 +42,7 @@ docker build -t tripreport .
 ### Run
 
 **Mac:**
+
 ```bash
 docker run -d -p 8000:8000 \
   -v "$HOME/OneDrive - Shi International Corp/trip_reports:/data" \
@@ -50,6 +51,7 @@ docker run -d -p 8000:8000 \
 ```
 
 **Windows (PowerShell):**
+
 ```powershell
 docker run -d -p 8000:8000 `
   -v "$env:USERPROFILE/OneDrive - Shi International Corp/trip_reports:/data" `
@@ -58,6 +60,7 @@ docker run -d -p 8000:8000 `
 ```
 
 **Windows (Command Prompt):**
+
 ```cmd
 docker run -d -p 8000:8000 -v "%USERPROFILE%\OneDrive - Shi International Corp\trip_reports:/data" -e REPORTS_DIR=/data --name tripreport tripreport
 ```
@@ -99,12 +102,12 @@ OneDrive - Shi International Corp/
 
 ## API Endpoints
 
-| Method | Route                | Description             |
-|--------|----------------------|-------------------------|
-| POST   | `/api/reports`       | Save a new report       |
-| GET    | `/api/reports`       | Search/filter reports   |
-| GET    | `/api/reports/{id}`  | Get a single report     |
-| DELETE | `/api/reports/{id}`  | Delete a report         |
+| Method | Route               | Description           |
+| ------ | ------------------- | --------------------- |
+| POST   | `/api/reports`      | Save a new report     |
+| GET    | `/api/reports`      | Search/filter reports |
+| GET    | `/api/reports/{id}` | Get a single report   |
+| DELETE | `/api/reports/{id}` | Delete a report       |
 
 ### Search query params
 
